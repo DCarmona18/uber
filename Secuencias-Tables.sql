@@ -173,6 +173,7 @@ CREATE TABLE Travels
   travel_status VARCHAR2(250) NOT NULL,
   travel_origin VARCHAR2(250) NOT NULL,
   travel_destination VARCHAR2(250) NOT NULL,
+  travel_totalvalue VARCHAR2(250) NOT NULL,
   travel_timestart TIMESTAMP NOT NULL,
   travel_timeend  TIMESTAMP NOT NULL,
   detail_id INT NOT NULL,

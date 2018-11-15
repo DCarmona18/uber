@@ -180,11 +180,13 @@ CREATE TABLE Travels
   trip_id INT NOT NULL,
   type_id INT NOT NULL,
   vdriver_id INT NOT NULL,
+  city_id INT NOT NULL,
   customer_id INT NOT NULL,
   user_id INT NOT NULL, 
   CONSTRAINT fk_Travels_driver FOREIGN KEY(vdriver_id) REFERENCES VehiclesDrivers(vdriver_id),
   CONSTRAINT fk_Travels_detail FOREIGN KEY(detail_id) REFERENCES TravelDetail(detail_id),
   CONSTRAINT fk_travel_trip FOREIGN KEY(trip_id) REFERENCES TripDetail(trip_id),
+  CONSTRAINT fk_travel_city FOREIGN KEY(city_id) REFERENCES City(city_id),
   CONSTRAINT fk_Travels_type FOREIGN KEY(type_id) REFERENCES ServiceType(type_id),
   CONSTRAINT fk_Travels_customer FOREIGN KEY(customer_id) REFERENCES Customers(customer_id),
   CONSTRAINT fk_paymentmethod_profile FOREIGN KEY(user_id) REFERENCES Users(user_id)

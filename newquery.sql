@@ -80,21 +80,35 @@ CREATE OR REPLACE FUNCTION VALOR_DISTANCIA (MINUTOS NUMBER,CIUDAD VARCHAR2(20))
  END;
 
  
- --CREACION PROCEDIMIENTO ALMACENADO
+  --CREACION PROCEDIMIENTO ALMACENADO
 CREATE OR REPLACE 
-PROCEDURE  CALCULAR_TARIFA(ID_VIAJE NUMBER)
-IS
+PROCEDURE CALCULAR_TARIFA(ID_VIAJE IN NUMBER)
+AS
   -- Declaracion de variables locales
+  status TRAVELS.TRAVEL_STATUS%TYPE;
+  city_id TRAVELS.CITY_ID%TYPE;
+  timestart TRAVELS.TRAVEL_TIMESTART%TYPE;
+  timeend TRAVELS.TRAVEL_TIMEEND%TYPE;
+  
+  base CITY.BASE%TYPE;
+  rate_km CITY.RATE_KM%TYPE;
+  rate_mn CITY.RATE_MN%TYPE;
+  city CITY.city_description%TYPE;
+  
+  minutos NUMBER := 0;
 BEGIN
   -- Sentencias
-  --Se debe crear una tabla temporal la cual guardara la informacion ya calculadas para trabajar en los puntos siguientes
-  --Conel query en una tabla temporal se realizan los if con las peticiones de los puntos
+  SELECT travel_status, city_id, travel_timestart, travel_timeend INTO status, city_id, timestart, timeend FROM Travels WHERE travel_id = ID_VIAJE;
   --a. Si el estado del viaje es diferente a REALIZADO, deberá insertar 0 en el valor de la tarifa. 
-	
+  IF status = 'REALIZADO' THEN
+    UPDATE Travels SET TRAVEL_TOTALVALUE = 0 WHERE travel_id = ID_VIAJE;
+  END IF;
   --b. Buscar el valor de la tarifa base dependiendo de la ciudad donde se haya hecho el servicio. 
-  
+  SELECT city_description, base, rate_km, rate_mn INTO city,base, rate_km, rate_mn FROM City WHERE city_id = city_id;
   --Se envian parametros  a las funciones y se almacena el resultado en variables declaradas
   --c. Invocar la función VALOR_DISTANCIA 
+  minutos := (timeend - timestart)/60;
+  VALOR_DISTANCIA(minutos,city);
   --d. Invocar la función VALOR_TIEMPO 
   
   --Este se realiza en el query principal que se almacena en la tabla temporal con un calculo de funciones de agregacion
@@ -103,4 +117,4 @@ BEGIN
   --f. Sumar la tarifa base más el resultado de la función VALOR_DISTANCIA más el resultado de la función VALOR_TIEMPO 
   --y el resultado de la sumatoria de los detalles del viaje. g. Actualizar el registro del viaje con el resultado obtenido. h. Si alguna de las funciones levanta una excepción, esta deberá ser controlada y actualizar el               valor del viaje con 0.
 
-END Actualiza_Saldo; 
+END; 

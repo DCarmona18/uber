@@ -1,4 +1,4 @@
---PRIMERA VISTA
+﻿--PRIMERA VISTA
 CREATE OR REPLACE VIEW MEDIOS_PAGO_CLIENTES AS 
 SELECT C.customer_id  AS CLIENTE_ID
        ,U.user_fullname AS NOMBRE_CLIENTE
@@ -17,7 +17,7 @@ SELECT C.customer_id  AS CLIENTE_ID
   LEFT OUTER JOIN Company CP ON CP.company_id=C.company_id;
 
 --SEGUNDA VISTA
-CREATE VIEW  VIAJES_CLIENTES AS 
+CREATE OR REPLACE VIEW  VIAJES_CLIENTES AS 
 	SELECT T.travel_date AS FECHA_VIAJE
        ,U.user_fullname  AS NOMBRE_CONDUCTOR
        ,V.vehicle_brand AS PLACA_VEHICULO
@@ -31,56 +31,59 @@ CREATE VIEW  VIAJES_CLIENTES AS
   INNER JOIN Users U ON U.user_id=D.user_id 
   INNER JOIN Vehicles V ON V.vehicle_id=VD.vehicle_id 
   INNER JOIN Customers C ON C.customer_id=T.customer_id
-  INNER JOIN Users U2 ON U.user_id=C.user_id 
+  INNER JOIN Users U2 ON U2.user_id=C.user_id 
   INNER JOIN TravelDetail TD ON TD.detail_id=T.detail_id
   INNER JOIN ServiceType S ON S.type_id=T.type_id;
 
 
 --CREACION FUNCION KILOMETROS
-CREATE OR REPLACE FUNCTION VALOR_DISTANCIA (DISTANCIAK NUMBER,CIUDAD VARCHAR2(20))
-  RETURN VARCHAR2
- IS
-  VALORRETORNADO NUMBER;
+CREATE OR REPLACE FUNCTION VALOR_DISTANCIA (DISTANCIAK IN NUMBER,CIUDAD IN VARCHAR2)
+  RETURN NUMBER
+ AS
+  city_id CITY.city_id%TYPE;
+  rate_km CITY.rate_km%TYPE;
+  VALOR NUMBER := 0;
+  invalid_id_exception EXCEPTION;
  BEGIN
-   VALORRETORNADO:=0;
    
-   DECLARE EXIST = (SELECT city_id  FROM City WHERE city_description = CIUDAD )
-   
-   IF (EXIST IS NOT NULL AND DISTANCIAK < 0) AND  THEN
-      RETURN VALORRETORNADO:=(SELECT (rate_km * DISTANCIAK) AS VALOR FROM City WHERE city_description = CIUDAD );
-   ELSE 
-       DBMS_OUTPUT.PUT_LINE('CAMPOS NO VALIDOS PARA CALCULOS DENTRO DE LA FUNCION ');
+   SELECT city_id, rate_km INTO city_id, rate_km FROM City WHERE city_description = CIUDAD;
+
+   IF (city_id <= 0 OR DISTANCIAK < 0)  THEN
+      RAISE invalid_id_exception;
+    ELSE   
+    RETURN (DISTANCIAK*rate_km);
    END IF;
    
    EXCEPTION
-	WHEN OTHERS THEN
-    RAISE_APPLICATION_ERROR(-20001,'No se puede dividir por cero');
- END;
- 
- 
---CREACION FUNCION MINUTOS
-CREATE OR REPLACE FUNCTION VALOR_DISTANCIA (MINUTOS NUMBER,CIUDAD VARCHAR2(20))
-  RETURN VARCHAR2
- IS
-  VALORRETORNADO NUMBER;
- BEGIN
-   VALORRETORNADO:=0;
-   
-   DECLARE EXIST = (SELECT city_id  FROM City WHERE city_description = CIUDAD )
-   
-   IF (EXIST IS NOT NULL AND MINUTOS < 0) AND  THEN
-      RETURN VALORRETORNADO:=(SELECT (rate_mn * MINUTOS) AS VALOR   FROM City WHERE city_description = CIUDAD );
-   ELSE 
-       DBMS_OUTPUT.PUT_LINE('CAMPOS NO VALIDOS PARA CALCULOS DENTRO DE LA FUNCION ');
-   END IF;
-   
-   EXCEPTION
-	WHEN OTHERS THEN
-    RAISE_APPLICATION_ERROR(-20001,'No se puede dividir por cero');
+    WHEN invalid_id_exception THEN
+    DBMS_OUTPUT.PUT_LINE('City not found');
  END;
 
  
-  --CREACION PROCEDIMIENTO ALMACENADO
+--CREACION FUNCION MINUTOS
+CREATE OR REPLACE FUNCTION VALOR_TIEMPO (MINUTOSK IN NUMBER,CIUDAD IN VARCHAR2)
+  RETURN NUMBER
+ AS
+  city_id CITY.city_id%TYPE;
+  rate_mn CITY.rate_mn%TYPE;
+  VALOR NUMBER := 0;
+  invalid_id_exception EXCEPTION;
+ BEGIN
+   
+   SELECT city_id, rate_mn INTO city_id, rate_mn FROM City WHERE city_description = CIUDAD;
+
+   IF (city_id <= 0 OR MINUTOSK < 0)  THEN
+      RAISE invalid_id_exception;
+    ELSE   
+    RETURN (MINUTOSK*rate_mn);
+   END IF;
+   
+   EXCEPTION
+    WHEN invalid_id_exception THEN
+    DBMS_OUTPUT.PUT_LINE('City not found');
+ END;
+
+--CREACION PROCEDIMIENTO ALMACENADO
 CREATE OR REPLACE 
 PROCEDURE CALCULAR_TARIFA(ID_VIAJE IN NUMBER)
 AS
@@ -94,11 +97,16 @@ AS
   rate_km CITY.RATE_KM%TYPE;
   rate_mn CITY.RATE_MN%TYPE;
   city CITY.city_description%TYPE;
-  
+  trip_second TRIPDETAIL.TRIP_SECOND%TYPE;
   minutos NUMBER := 0;
+  valor_distancia NUMBER:= 0;
+  valor_tiempo NUMBER:= 0;
+  CURSOR c_travels IS SELECT * FROM TRAVELS
 BEGIN
   -- Sentencias
-  SELECT travel_status, city_id, travel_timestart, travel_timeend INTO status, city_id, timestart, timeend FROM Travels WHERE travel_id = ID_VIAJE;
+  SELECT T.travel_status, T.city_id, T.travel_timestart, T.travel_timeend, TD.TRIP_SECOND INTO status, city_id, timestart, timeend, trip_second FROM Travels T
+  INNER JOIN TripDetail TD ON TD.TRIP_ID = T.TRIP_ID
+  WHERE travel_id = ID_VIAJE;
   --a. Si el estado del viaje es diferente a REALIZADO, deberá insertar 0 en el valor de la tarifa. 
   IF status = 'REALIZADO' THEN
     UPDATE Travels SET TRAVEL_TOTALVALUE = 0 WHERE travel_id = ID_VIAJE;
@@ -107,10 +115,9 @@ BEGIN
   SELECT city_description, base, rate_km, rate_mn INTO city,base, rate_km, rate_mn FROM City WHERE city_id = city_id;
   --Se envian parametros  a las funciones y se almacena el resultado en variables declaradas
   --c. Invocar la función VALOR_DISTANCIA 
-  minutos := (timeend - timestart)/60;
-  VALOR_DISTANCIA(minutos,city);
+  valor_distancia := VALOR_DISTANCIA(trail,city);
   --d. Invocar la función VALOR_TIEMPO 
-  
+  valor_tiempo := VALOR_TIEMPO(trip_second,city);
   --Este se realiza en el query principal que se almacena en la tabla temporal con un calculo de funciones de agregacion
   --e. Deberá buscar todos los detalles de cada viaje y sumarlos. 
   

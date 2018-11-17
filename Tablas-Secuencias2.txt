@@ -149,7 +149,7 @@ CREATE TABLE TravelDetail
   trail_total INT NOT NULL,
   detail_valuestart FLOAT NOT NULL,
   detail_valueend FLOAT NOT NULL,
-  detail_valuedinamic varchar(15) NOT NULL,
+  detail_valuedinamic FLOAT NOT NULL,
   invitation_code INT,
   vehicle_number VARCHAR2(250) NOT NULL,
   travel_timeend TIMESTAMP NOT NULL,
@@ -190,16 +190,7 @@ CREATE TABLE TravelShared
 (
   shared_id INT PRIMARY KEY,
   shared_value FLOAT NOT NULL,
-  shared_custumer INT NOT NULL,
-  detail_id  INT NOT NULL,
-  CONSTRAINT fk_travel_travelShared FOREIGN KEY(detail_id) REFERENCES TravelDetail(detail_id)
-);
-
-CREATE TABLE TravelShared
-(
-  shared_id INT PRIMARY KEY,
-  shared_value FLOAT NOT NULL,
-  shared_custumer INT NOT NULL,
+  shared_customer INT NOT NULL,
   detail_id  INT NOT NULL,
   CONSTRAINT fk_travel_travelShared FOREIGN KEY(detail_id) REFERENCES TravelDetail(detail_id)
 );

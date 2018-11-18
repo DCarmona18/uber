@@ -153,6 +153,8 @@ CREATE TABLE TravelDetail
   invitation_code INT,
   vehicle_number VARCHAR2(250) NOT NULL,
   travel_timeend TIMESTAMP NOT NULL,
+  iva FLOAT NOT NULL,
+  descuento FLOAT NOT NULL,
   payment_id INT NOT NULL,
   bill_id INT,
   CONSTRAINT fk_TravelDetail_payment FOREIGN KEY(payment_id) REFERENCES PaymentMethod(payment_id)

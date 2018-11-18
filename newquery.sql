@@ -1,3 +1,13 @@
+﻿
+-- 3. Explain plan
+EXPLAIN PLAN FOR select * from VIAJES_CLIENTES;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+
+DROP INDEX USERS_FULLNAME;
+CREATE INDEX USERS_FULLNAME ON Users(USER_FULLNAME, USER_ID);
+EXPLAIN PLAN FOR select * from VIAJES_CLIENTES;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+
 --PRIMERA VISTA
 CREATE OR REPLACE VIEW MEDIOS_PAGO_CLIENTES AS 
 SELECT C.customer_id  AS CLIENTE_ID
@@ -85,7 +95,7 @@ CREATE OR REPLACE FUNCTION VALOR_TIEMPO (MINUTOSK IN NUMBER,CIUDAD IN VARCHAR2)
     DBMS_OUTPUT.PUT_LINE('City not found or DISTANCIAK not valid ');
  END;
 
---CREACION PROCEDIMIENTO ALMACENADO
+
 CREATE OR REPLACE 
 PROCEDURE CALCULAR_TARIFA(ID_VIAJE IN NUMBER)
 AS
@@ -95,17 +105,18 @@ AS
   timestart TRAVELS.TRAVEL_TIMESTART%TYPE;
   timeend TRAVELS.TRAVEL_TIMEEND%TYPE;
   
-  base CITY.BASE%TYPE;
-  rate_km CITY.RATE_KM%TYPE;
-  rate_mn CITY.RATE_MN%TYPE;
-  city CITY.city_description%TYPE;
+  base NUMBER ;
+  rate_km FLOAT ;
+  rate_mn FLOAT ;
+  city VARCHAR2(250);
   trip_second TRIPDETAIL.TRIP_SECOND%TYPE;
   sum_detail NUMBER :=0;
   minutos NUMBER := 0;
-  valor_distancia NUMBER:= 0;
-  valor_tiempo NUMBER:= 0;
+  valor_distancia_data NUMBER;
+  valor_tiempo_data NUMBER;
   VALOR NUMBER := 0;
-  CURSOR c_travels IS SELECT * FROM TRAVELS
+  trail TRAVELDETAIL.TRAIL_TOTAL%TYPE;
+  CURSOR c_travels IS SELECT * FROM TRAVELS;
 BEGIN
   -- Sentencias
     --e. Deberá buscar todos los detalles de cada viaje y sumarlos. 
@@ -114,17 +125,20 @@ BEGIN
          ,T.travel_timestart
          ,T.travel_timeend
          ,TD.TRIP_SECOND 
-         ,sum(TV.DETAIL_VALUEEND+TV.DETAIL_VALUEDINAMIC/*+TV.IVA+TV.DESCUENTO*/) AS sum_detail 
+         ,sum(TV.DETAIL_VALUEEND+TV.DETAIL_VALUEDINAMIC+TV.IVA+TV.DESCUENTO) AS sum_detail
+         ,TV.trail_total
   INTO   status
          ,city_id
          ,timestart
          ,timeend 
          ,trip_second 
          ,sum_detail
+         ,trail
   FROM Travels T
   INNER JOIN TripDetail TD ON TD.TRIP_ID = T.TRIP_ID
   INNER JOIN TravelDetail TV ON TV.detail_id = T.detail_id
-  WHERE travel_id = ID_VIAJE;
+  WHERE travel_id = ID_VIAJE group by T.travel_status, T.city_id, T.travel_timestart, T.travel_timeend, TD.TRIP_SECOND, 
+TV.trail_total;
   
   --a. Si el estado del viaje es diferente a REALIZADO, deberá insertar 0 en el valor de la tarifa. 
   IF status = 'REALIZADO' THEN
@@ -145,15 +159,16 @@ BEGIN
   WHERE city_id = city_id;
   --Se envian parametros  a las funciones y se almacena el resultado en variables declaradas
   --c. Invocar la función VALOR_DISTANCIA 
-  valor_distancia := VALOR_DISTANCIA(trail,city);
+  
+ valor_distancia_data := VALOR_DISTANCIA(trail,city);
   --d. Invocar la función VALOR_TIEMPO 
   
-  valor_tiempo := VALOR_TIEMPO(trip_second,city);
+ valor_tiempo_data := VALOR_TIEMPO(trip_second,city);
   --CONTROLAR ERRORES EN RETORNOS DEJAR POR DEFECTO VALOR CERO 
   
   --Este se realiza en el query principal que se almacena en la tabla temporal con un calculo de funciones de agregacion
   --f. Sumar la tarifa base más el resultado de la función VALOR_DISTANCIA más el resultado de la función VALOR_TIEMPO 
-  VALOR := (valor_distancia+valor_tiempo+sum_detail+base);
+  VALOR := (valor_distancia_data+valor_tiempo_data+sum_detail+base);
   --y el resultado de la sumatoria de los detalles del viaje. 
   --g. Actualizar el registro del viaje con el resultado obtenido. 
     IF VALOR > 0 THEN
@@ -161,5 +176,8 @@ BEGIN
       WHERE travel_id = ID_VIAJE;
     END IF;
   --h. Si alguna de las funciones levanta una excepción, esta deberá ser controlada y actualizar el valor del viaje con 0.
-
+EXCEPTION  -- exception handlers begin
+   WHEN OTHERS THEN  -- handles all other errors
+      UPDATE Travels SET TRAVEL_TOTALVALUE = 0 
+      WHERE travel_id = ID_VIAJE;
 END; 

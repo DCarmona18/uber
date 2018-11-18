@@ -11,8 +11,8 @@ CREATE TABLE City
   city_description VARCHAR2(250)NOT NULL,
   country_id NOT NULL, 
   base NUMBER NOT NULL, 
-  rate_km NUMBER NOT NULL, 
-  rate_mn NUMBER NOT NULL, 
+  rate_km FLOAT NOT NULL, 
+  rate_mn FLOAT NOT NULL, 
   CONSTRAINT fk_city_country FOREIGN KEY(country_id) REFERENCES Country(country_id)
 );
 
